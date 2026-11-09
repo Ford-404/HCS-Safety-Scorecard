@@ -4,6 +4,8 @@ Stage 1 discovery, run 2026-11-09 against **401814 ACN4 - Celestica TI** (Procor
 company **Hillwood Construction Services, L.P.** (`9593`), production. All calls were GET except the OAuth token request.
 Raw responses are in `samples/` (gitignored; they contain names and incident details).
 
+**Update 2026-11-09 (after the app was given Admin on Incidents, Forms and Observations):** all six tabs now return data. Re-verified rows are marked ✅ below.
+
 Legend: ✅ verified against the workbook's existing rows · ⚠️ mapping found but not yet verified · ❌ blocked / no API source
 
 **Common to all tabs**
@@ -53,15 +55,15 @@ Endpoint: `GET /rest/v1.0/observations/items?project_id={id}` (query-based, not 
 | Column | Source | |
 |---|---|---|
 | Project Number / Project Name | project | ✅ |
-| # | `number` | ⚠️ |
-| Category | `type.category` (`Safety`, `Quality`, `Environmental`, `Work to Complete`, `Commissioning`) | ⚠️ |
-| Status | `status`, title-cased (`closed`→`Closed`, `initiated`→`Initiated`; other values to be mapped as found) | ⚠️ |
-| Date Created | `created_at` → Central date | ⚠️ |
-| Column3 | company custom field `custom_field_87826.value.label` (e.g. "Fall Protection", "Housekeeping"). Blank on non-safety types | ⚠️ |
+| # | `number` | ✅ |
+| Category | `type.category` (`Safety`, `Quality`, `Environmental`, `Work to Complete`, `Commissioning`) | ✅ (#6 is `Commissioning` in the workbook and `Quality` in Procore today, so it was recategorized after the export) |
+| Status | `status`: `closed`→`Closed`, `initiated`→`Initiated`, `ready_for_review`→`Ready for Review` | ✅ (#3 and #5 were Initiated at export and are closed now) |
+| Date Created | `created_at` → Central date | ✅ |
+| Column3 | company custom field `custom_field_87826.value.label` (e.g. "Fall Protection", "Housekeeping"). Blank on non-safety types | ✅ (6/6) |
 | Column2 | blank | — |
 | Column1 | formula kept: `=IF([@Status]="Closed","Closed","Open")` | — |
 
-❌ **Visibility problem:** the app sees 17 observations on 401814 (#8, 12, 18, …, 85), but **none of #1–6 from the workbook**. The numbering has gaps, which means the app can't see some records. See "Blockers" below.
+~~Visibility problem~~ fixed: 111 observations visible on 401814, numbered from #1.
 
 ## 4. UTV - Procore Data (Table3)
 
@@ -83,31 +85,31 @@ Endpoint: `GET /rest/v1.0/projects/{id}/forms`, filtered to `form_template_name 
 
 | Column | Source | |
 |---|---|---|
-| Template Name | `form_template_name` | ⚠️ |
-| Project Number / Project Name | project | ⚠️ |
-| Date | `created_at` → Central date (to be confirmed: it may be a date typed inside the form) | ⚠️ |
-| Title | `name` | ⚠️ |
-| Description | `description` | ⚠️ |
+| Template Name | `form_template_name` | ✅ |
+| Project Number / Project Name | project | ✅ |
+| Date | `created_at` → Central date | ✅ |
+| Title | `name` | ✅ |
+| Description | `description` | ✅ |
 
 - **The Forms API returns form records, not their contents.** List and detail (`/forms/{id}`) return the same fields: name, description, template, created_at, created_by, and a fillable PDF/attachment. The answers typed into the form aren't exposed as data. The workbook only uses this tab for a count by project (column B), so that's fine for scoring.
-- ❌ **Zero Incident Report forms are visible.** 404032 has 6 and 401805 has 4 in the workbook. The API returns 4 and 0 forms of other types for those projects, and no Incident Report forms. These forms are probably marked private.
+- ~~Zero Incident Report forms visible~~ fixed: 404032 shows 8, and the 6 in the workbook match on date, title and description (2 are newer).
 
 ## 6. Incidents Tab - Procore Data (Table5)
 
 Endpoint: `GET /rest/v1.0/projects/{id}/incidents`.
 
-| Column | Expected source (standard Procore fields, unverified) | |
+| Column | Source | |
 |---|---|---|
-| # | `number` | ❌ |
-| Status | `status` | ❌ |
-| Incident Date | `event_date` → Central date | ❌ |
-| Title | `title` | ❌ |
-| Recordable | `recordable` → `Yes` / `No` | ❌ |
-| Description | `description` | ❌ |
+| # | `number` | ✅ |
+| Status | `status`, title-cased | ✅ (#3 was Open at export, closed now) |
+| Incident Date | `event_date` → Central date | ✅ |
+| Title | `title` | ✅ |
+| Recordable | `recordable` (true/false) → `Yes` / `No` | ✅ |
+| Description | `description` is **HTML**; strip the tags and convert `&nbsp;` to plain text | ✅ |
 
-❌ **Returns 0 incidents on every project tested** (401814 has 3 in the workbook, 404032 has 4, 401805 has 4). `GET /incidents/configuration` returns **403 "You do not have sufficient access"**.
+~~Returned 0 incidents~~ fixed: 401814 shows 13, and the 3 in the workbook match. Configuration endpoint now returns 200.
 
-## Blockers to fix in Procore (no code change needed)
+## Blockers to fix in Procore: RESOLVED 2026-11-09
 
 The app's service account can't see private and restricted records in three tools. The API is still read-only. The service account just needs a higher permission level on these tools:
 
