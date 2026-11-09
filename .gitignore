@@ -11,3 +11,7 @@ __pycache__/
 .venv/
 # Workbook contains incident details; keep out of git unless decided otherwise
 templates/*.xlsx
+
+# Daily log completion cache (rebuildable)
+data/
+*.zip

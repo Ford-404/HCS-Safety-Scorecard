@@ -1,0 +1,52 @@
+# HCS Safety Health Report automation settings. No secrets here (they live in .env).
+
+template: "templates/002 - Safety Health Report.xlsx"
+output_dir: "output"
+timezone: "America/Chicago"          # Procore timestamps are UTC; dates are written in this zone
+
+procore:
+  safety_survey_templates: ["Site Safety Inspection"]
+  utv_templates: ["UTV Checklist"]
+  incident_form_templates: ["Incident Report"]
+  observation_type_custom_field: "custom_field_87826"   # "Fall Protection", "Housekeeping", ...
+
+daily_log:
+  cache_file: "data/daily_log_cache.json"
+  refresh_days: 21              # re-check not-yet-completed days this far back (logs are often completed late)
+  default_lookback_days: 365    # used when a project has no Mobilization Date in Table1
+
+# Procore project region -> report region (Table1 "Region" column)
+region_map:
+  HCS TEXAS: TX
+  HCS NORTHEAST: NE
+  HCS CALIFORNIA: West
+  HCS SOUTHEAST: SE
+  HCS MIDSOUTH: EC            # assumed (Table1 uses EC); extract.py logs any project where this disagrees with Table1
+
+# Table1 project numbers to skip (e.g. projects the app is not meant to see)
+skip_projects: []
+
+workbook:
+  # Table6 (Safety Survey) and Table18 (Observations) must stay full-height (to row 1,048,576)
+  # until the COUNTIFS formulas in Table1 are fixed: they pair those columns with
+  # 'Daily Log - Procore Data'!C:C, and COUNTIFS requires equal-sized ranges.
+  # See docs/stage5-proposals.md. Set to true only after that fix is applied to the template.
+  shrink_all_tables: false
+  recalc_engine: auto          # auto | excel | libreoffice | none
+
+report:
+  score_threshold: null        # e.g. 0.70 -> projects with Overall Score below 70% are flagged at the top
+  subject: "HCS Safety Health Report - {date}"
+
+email:
+  enabled: false               # set true once tested; false = write the email to output/ only
+  method: outlook              # outlook (Outlook desktop on this PC) | smtp | graph
+  to: []                       # test list first, e.g. ["you@hillwood.com"]
+  cc: []
+  from: ""                     # smtp/graph only: sending mailbox
+  smtp:
+    host: "smtp.office365.com"
+    port: 587
+    starttls: true             # username/password from .env: SMTP_USERNAME, SMTP_PASSWORD
+  graph:
+    tenant_id: ""              # client id/secret from .env: GRAPH_CLIENT_ID, GRAPH_CLIENT_SECRET

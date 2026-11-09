@@ -1,0 +1,2 @@
+# Windows-only: Excel recalculation and Outlook sending through COM
+pywin32>=306

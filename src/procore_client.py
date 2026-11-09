@@ -39,6 +39,26 @@ class ProcoreClient:
         self.session = requests.Session()
         self._token: str | None = None
         self._token_expires = 0.0
+        self.request_count = 0
+        self._rl_remaining: int | None = None
+        self._rl_reset = 0.0
+
+    # ---- rate limiting -----------------------------------------------------
+    # Procore returns X-Rate-Limit-Limit/Remaining/Reset (observed: 25 per ~10s
+    # window). Pause before the window is exhausted instead of waiting for 429s.
+    def _note_rate_limit(self, resp) -> None:
+        rem, reset = resp.headers.get("X-Rate-Limit-Remaining"), resp.headers.get("X-Rate-Limit-Reset")
+        if rem is not None and rem.isdigit():
+            self._rl_remaining = int(rem)
+        if reset is not None and reset.isdigit():
+            self._rl_reset = float(reset)
+
+    def _throttle(self) -> None:
+        if self._rl_remaining is not None and self._rl_remaining <= 1:
+            wait = self._rl_reset - time.time() + 0.5
+            if wait > 0:
+                time.sleep(min(wait, 120))
+            self._rl_remaining = None
 
     # ---- auth -------------------------------------------------------------
     def _refresh_token(self) -> None:
@@ -68,24 +88,46 @@ class ProcoreClient:
     def get_response(self, path: str, params: dict | None = None, max_retries: int = 6) -> requests.Response:
         url = path if path.startswith("http") else f"{self.base}{path}"
         delay = 2.0
-        for attempt in range(max_retries + 1):
-            resp = self.session.get(url, headers=self._auth_headers(), params=params, timeout=60)
-            if resp.status_code == 401 and attempt == 0:
+        resp = None
+        rate_waits = 0
+        attempt = 0
+        while attempt <= max_retries:
+            self._throttle()
+            try:
+                resp = self.session.get(url, headers=self._auth_headers(), params=params, timeout=60)
+            except requests.RequestException as exc:  # network blip: back off and retry
+                attempt += 1
+                log.warning("Network error on %s (%s), retrying in %.0fs", url, exc, delay)
+                time.sleep(delay)
+                delay *= 2
+                continue
+            self._note_rate_limit(resp)
+            self.request_count += 1
+            if resp.status_code != 429:
+                attempt += 1
+            if resp.status_code == 401 and attempt == 1:
                 self._token = None  # token revoked/expired early: refresh once
                 continue
-            if resp.status_code == 429 or resp.status_code >= 500:
-                wait = delay
+            if resp.status_code == 429:
+                # Procore has a short window (~25 req/10 s) and an hourly limit (~3,600/h).
+                # Wait for the reset either way; this does not count as a failed attempt.
                 reset = resp.headers.get("X-Rate-Limit-Reset")
-                if resp.status_code == 429 and reset and reset.isdigit():
-                    wait = max(1.0, int(reset) - time.time())
-                log.warning("HTTP %s on %s, retrying in %.0fs", resp.status_code, url, wait)
-                time.sleep(min(wait, 120))
+                wait = max(1.0, int(reset) - time.time() + 1) if reset and reset.isdigit() else 60.0
+                rate_waits += 1
+                if rate_waits > 20:
+                    raise ProcoreError(429, url, "rate limited too many times")
+                log.warning("Rate limited by Procore; waiting %.0fs (until the limit resets)", min(wait, 3700))
+                time.sleep(min(wait, 3700))
+                continue
+            if resp.status_code >= 500:
+                log.warning("HTTP %s on %s, retrying in %.0fs", resp.status_code, url, delay)
+                time.sleep(delay)
                 delay *= 2
                 continue
             if resp.status_code >= 400:
                 raise ProcoreError(resp.status_code, url, resp.text)
             return resp
-        raise ProcoreError(resp.status_code, url, resp.text)
+        raise ProcoreError(getattr(resp, 'status_code', 0), url, getattr(resp, 'text', 'network error'))
 
     def get(self, path: str, params: dict | None = None):
         return self.get_response(path, params).json()
