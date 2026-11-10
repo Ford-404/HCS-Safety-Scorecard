@@ -23,7 +23,7 @@ from tabs import TABS  # noqa: E402
 
 log = logging.getLogger("extract")
 
-OBS_STATUS = {"initiated": "Initiated", "ready_for_review": "Ready for Review", "not_accepted": "Not Accepted",
+OBS_STATUS = {"initiated": "Initiated", "ready_for_review": "Ready For Review", "not_accepted": "Not Accepted",
               "closed": "Closed", "open": "Open"}
 
 
@@ -60,14 +60,16 @@ class Extractor:
     def inspections(self, pid, pn, pname, region):
         lists = self.c.get_all(f"/rest/v1.0/projects/{pid}/checklist/lists")
         lists = [x for x in lists if not x.get("deleted")]
-        surveys = sorted((x for x in lists if x.get("list_template_name") in self.survey_tpl), key=lambda x: x.get("number") or 0)
+        surveys = sorted((x for x in lists if x.get("list_template_name") in self.survey_tpl),
+                         key=lambda x: (int(x["identifier"]) if str(x.get("identifier") or "").isdigit() else 10**9, x.get("number") or 0))
         utvs = sorted((x for x in lists if x.get("list_template_name") in self.utv_tpl), key=lambda x: x.get("created_at") or "")
         for x in surveys:
             self.rows["safety_survey"].append({
                 "Project Number": pn,
                 "Inspection Template Name": x.get("list_template_name"),
                 "Project Name": pname,
-                "Inspection #": str(x.get("number") if x.get("number") is not None else x.get("identifier") or ""),
+                # identifier is the number users see in Procore (and in the manual export); `number` is internal
+                "Inspection #": str(x.get("identifier") or x.get("number") or ""),
                 "Assignee(s)": ", ".join(name_of(i) for i in (x.get("inspectors") or [])),
                 "No Response": max(0, (x.get("item_count") or 0) - (x.get("inspected_item_count") or 0)),
                 "Due Date": to_local_date(x.get("due_at"), self.tz),
@@ -205,6 +207,8 @@ class Extractor:
                 self.problems.append(f"{pn}: project detail failed (HTTP {e.status}) - skipped")
                 continue
             pname = detail.get("name") or p.get("name")
+            # Dates are shown in the project's own time zone in Procore (and in the manual export)
+            self.tz = detail.get("tz_name") or self.cfg["timezone"]
             region = (detail.get("project_region") or {}).get("name") or ""
             mapped = region_map.get(region)
             if row.get("Region") and mapped and mapped != row.get("Region"):

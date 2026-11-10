@@ -22,9 +22,11 @@ python run_weekly.py
    ```
 4. Open `.env` and fill in the keys (below).
 5. Test without sending: `.\.venv\Scripts\python.exe run_weekly.py --no-email`
-   - The **first run takes about 3 hours.** Procore only returns Daily Log completion one date per call,
-     and the app is limited to roughly 3,600 calls an hour. The results are cached in `data\daily_log_cache.json`,
-     so weekly runs after that take about 10–20 minutes.
+   - The **first run takes about 8 hours.** Procore only returns Daily Log completion one date per call
+     (about 7,600 dates across all projects), and this app is allowed about 1,000 calls an hour. The script
+     pauses until each hourly limit resets. The results are cached in `data\daily_log_cache.json`, so
+     weekly runs after that use about 700–900 calls and take about 10–20 minutes. **Copy `data\daily_log_cache.json`
+     from the cloud test run to the PC to skip the long first run.**
    - Check `output\<date>\checks.txt` (should say `Status: OK`), the workbook, and `output\<date>\email.html`.
 6. Turn on email (see below), then schedule it:
    ```
@@ -126,5 +128,6 @@ goes to the same list.
   the template and are listed as pre-existing (see Stage 5).
 - "not visible to the Procore app": give the app access to that project in Procore (Company Admin →
   App Management), or add it to `skip_projects`.
-- Runs are slow or show "Rate limited": that's normal on the first run. Procore's hourly limit resets
-  and the script waits for it.
+- Runs are slow or show "Rate limited": that's normal on the first run. The app gets about 1,000
+  Procore calls an hour, and the script waits for the limit to reset. If a weekly run starts hitting it,
+  lower `daily_log.refresh_days` in config.yaml.

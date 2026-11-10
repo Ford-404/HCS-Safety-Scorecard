@@ -50,7 +50,8 @@ def main(argv=None) -> int:
         run_dir = ROOT / cfg["output_dir"] / run_date.isoformat()
         if status != "OK":
             raise RuntimeError(f"workbook checks failed, see {run_dir / 'checks.txt'}")
-        notes = list(ex.problems)
+        notes = [n.replace("not visible to the Procore app - skipped", "not visible to the Procore app - last export's rows carried forward")
+                 for n in ex.problems]
         threshold = cfg["report"].get("score_threshold")
         body = build_html(table1_rows(values), run_date, threshold, notes)
         subject = cfg["report"]["subject"].format(date=run_date.strftime("%m/%d/%Y"))

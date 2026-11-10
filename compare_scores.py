@@ -47,9 +47,14 @@ def values(template: Path, data: dict, work: Path, tag: str, shrink: bool) -> di
     return {"table1": rows, "scorecard": scorecard}
 
 
-def fmt(v):
+SCORE_COLS = {"E", "AA", "AG", "AK", "AO"}
+
+
+def fmt(v, col=""):
+    if col in SCORE_COLS and isinstance(v, (int, float)) and not isinstance(v, bool):
+        return f"{v:.1%}"
     if isinstance(v, float):
-        return f"{v:.1%}" if abs(v) <= 1.5 else f"{v:.1f}"
+        return f"{v:.1f}"
     return "" if v is None else str(v)
 
 
@@ -72,7 +77,7 @@ def compare(original: Path, fixed: Path, cfg: dict, date: str | None = None) -> 
         for c in COLS:
             x, y = row.get(c), nb.get(c)
             same = x == y or (isinstance(x, (int, float)) and isinstance(y, (int, float)) and abs(x - y) < 1e-9)
-            cells.append(fmt(x) if same else f"**{fmt(x)} → {fmt(y)}**")
+            cells.append(fmt(x, c) if same else f"**{fmt(x, c)} → {fmt(y, c)}**")
             diff |= not same
         changed += diff
         lines.append(f"| {row['Project #']} | {row['Name']} | " + " | ".join(cells) + " |")
