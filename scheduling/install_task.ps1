@@ -1,6 +1,6 @@
 # Registers the weekly Windows scheduled task (default Monday 6:00 AM, PC local time).
 #   powershell -ExecutionPolicy Bypass -File scheduling\install_task.ps1 [-Day Monday] [-Time 06:00]
-# Runs as the signed-in user, which is what Outlook sending needs. Keep the user signed in
+# Runs as the signed-in user (Excel recalculation and OneDrive sync need the user session). Keep the user signed in
 # (lock the screen rather than signing out) on the always-on PC.
 param([string]$Day = "Monday", [string]$Time = "06:00", [string]$TaskName = "HCS Safety Health Report")
 $ErrorActionPreference = "Stop"

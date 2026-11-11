@@ -37,10 +37,13 @@ report:
 
 email:
   enabled: true                # false = write the email to output/<date>/ only, send nothing
-  method: outlook              # chosen 2026-11-11: Windows Task Scheduler + Outlook desktop on the PC
+  method: onedrive             # Power Automate flow sends it (new Outlook can't be scripted). Other options: outlook | graph | smtp
   to: ["ford.nwosu@hillwood.com"]   # test list: just you. Add the distribution list once you are happy with it
   cc: []
   from: ""                     # smtp/graph only: sending mailbox
+  onedrive:
+    folder: "HCS Safety Report"  # folder inside your work OneDrive that the Power Automate flow watches
+    root: ""                     # blank = your work OneDrive (Windows' OneDriveCommercial setting)
   smtp:
     host: "smtp.office365.com"
     port: 587
