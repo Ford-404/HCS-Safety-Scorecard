@@ -21,14 +21,15 @@ python run_weekly.py
    powershell -ExecutionPolicy Bypass -File scheduling\setup_windows.ps1
    ```
 4. Open `.env` and fill in the keys (below).
-5. Test without sending: `.\.venv\Scripts\python.exe run_weekly.py --no-email`
+5. Test without sending: `.\.venv\Scripts\python.exe run_weekly.py --no-email`. Email is already set up
+   (Outlook, to ford.nwosu@hillwood.com), so a run without `--no-email` sends it.
    - The **first run takes about 8 hours.** Procore only returns Daily Log completion one date per call
      (about 7,600 dates across all projects), and this app is allowed about 1,000 calls an hour. The script
      pauses until each hourly limit resets. The results are cached in `data\daily_log_cache.json`, so
      weekly runs after that use about 700–900 calls and take about 10–20 minutes. **Copy `data\daily_log_cache.json`
      from the cloud test run to the PC to skip the long first run.**
    - Check `output\<date>\checks.txt` (should say `Status: OK`), the workbook, and `output\<date>\email.html`.
-6. Turn on email (see below), then schedule it:
+6. Run once with email to check it arrives (`run_weekly.py`), then schedule it:
    ```
    powershell -ExecutionPolicy Bypass -File scheduling\install_task.ps1            # Monday 06:00
    powershell -ExecutionPolicy Bypass -File scheduling\install_task.ps1 -Day Friday -Time 05:30
@@ -98,10 +99,11 @@ The extract log lists any project where Procore and Table1 disagree.
   order are unchanged, and project numbers stay as **text** like today. The file is rewritten at the XML
   level, so images, comments, data validation and the Scorecard's dynamic arrays are kept exactly.
 - The workbook drops from about 12 MB to about 0.5 MB.
-- **Table6 (Safety Survey) and Table18 (Observations) still run to row 1,048,576.** Table1's COUNTIFS
-  pair them with `'Daily Log - Procore Data'!C:C`, and COUNTIFS needs equal-sized ranges. Shrinking
-  them would make those formulas return `#VALUE!`. The Stage 5 fix removes this; then set
-  `workbook.shrink_all_tables: true`. The size saving already comes from not storing empty rows.
+- **The template in use is `templates/002 - Safety Health Report (fixed).xlsx`** (adopted 2026-11-11). It has
+  the Stage 5 Scorecard, COUNTIFS and open-survey-penalty fixes; the original is kept alongside. With the
+  COUNTIFS fix, every data table is sized to its real data (`workbook.shrink_all_tables: true`). If you go back
+  to the original template, set that to false: its COUNTIFS need Table6/Table18 to run to row 1,048,576.
+- **Edit manual columns in the (fixed) template from now on**, since that's the one the weekly run copies.
 - **Recalculation:** on Windows the script uses Excel itself (recalculate and save). Without Excel it
   uses LibreOffice on a verification copy with numeric project numbers, because LibreOffice, unlike
   Excel, won't match text "401814" against the number 401814. The values are stored in the workbook,

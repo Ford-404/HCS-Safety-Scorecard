@@ -1,6 +1,6 @@
 # HCS Safety Health Report automation settings. No secrets here (they live in .env).
 
-template: "templates/002 - Safety Health Report.xlsx"
+template: "templates/002 - Safety Health Report (fixed).xlsx"   # adopted 2026-11-11: Scorecard, COUNTIFS and open-survey penalty fixes (original kept alongside)
 output_dir: "output"
 timezone: "America/Chicago"          # Procore timestamps are UTC; dates are written in this zone
 
@@ -27,21 +27,19 @@ region_map:
 skip_projects: []
 
 workbook:
-  # Table6 (Safety Survey) and Table18 (Observations) must stay full-height (to row 1,048,576)
-  # until the COUNTIFS formulas in Table1 are fixed: they pair those columns with
-  # 'Daily Log - Procore Data'!C:C, and COUNTIFS requires equal-sized ranges.
-  # See docs/stage5-proposals.md. Set to true only after that fix is applied to the template.
-  shrink_all_tables: false
+  # true = every data table is sized to its data. Requires the COUNTIFS fix (docs/stage5-proposals.md),
+  # which the adopted "(fixed)" template has. Set back to false if you return to the original template.
+  shrink_all_tables: true
   recalc_engine: auto          # auto | excel | libreoffice | none
 
 report:
-  score_threshold: null        # e.g. 0.70 -> projects with Overall Score below 70% are flagged at the top
+  score_threshold: null        # no flag section (chosen 2026-11-11). e.g. 0.70 flags projects below 70% at the top
   subject: "HCS Safety Health Report - {date}"
 
 email:
-  enabled: false               # set true once tested; false = write the email to output/ only
-  method: outlook              # outlook (Outlook desktop on this PC) | smtp | graph
-  to: []                       # test list first, e.g. ["you@hillwood.com"]
+  enabled: true                # false = write the email to output/<date>/ only, send nothing
+  method: outlook              # chosen 2026-11-11: Windows Task Scheduler + Outlook desktop on the PC
+  to: ["ford.nwosu@hillwood.com"]   # test list: just you. Add the distribution list once you are happy with it
   cc: []
   from: ""                     # smtp/graph only: sending mailbox
   smtp:
