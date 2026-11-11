@@ -7,6 +7,8 @@ Send methods (config.yaml -> email.method):
   outlook  Outlook desktop on this PC (pywin32). Simplest; the PC user must be signed in to Outlook.
   graph    Microsoft Graph sendMail with an Entra app (GRAPH_CLIENT_ID / GRAPH_CLIENT_SECRET in .env,
            tenant_id + from in config). Runs unattended; needs IT to grant Mail.Send.
+  onedrive Saves the email into a work-OneDrive folder; a Power Automate flow sends it from your mailbox
+           (works with the new Outlook; see docs/power-automate-flow.md).
   smtp     SMTP AUTH (SMTP_USERNAME / SMTP_PASSWORD in .env). Often disabled in Microsoft 365.
 With email.enabled: false nothing is sent; the message is saved to output/<date>/email.html and .eml.
 """
@@ -169,9 +171,51 @@ def send(cfg: dict, subject: str, html_body: str, attachment: Path | None, save_
             smtp.send_message(msg)
     elif method == "graph":
         _send_graph(cfg, subject, html_body, attachment)
+    elif method == "onedrive":
+        return _send_onedrive(cfg, subject, html_body, attachment)
     else:
         raise ValueError(f"unknown email.method {method}")
     return f"sent via {method} to {', '.join(e['to'])}"
+
+
+def onedrive_folder(cfg) -> Path:
+    """<work OneDrive>/<email.onedrive.folder>. Windows sets OneDriveCommercial for the work OneDrive."""
+    od = cfg["email"].get("onedrive") or {}
+    root = od.get("root") or os.environ.get("OneDriveCommercial") or os.environ.get("OneDrive")
+    if not root:
+        raise RuntimeError("Work OneDrive folder not found. Set email.onedrive.root in config.yaml "
+                           "(e.g. C:\\Users\\you\\OneDrive - Company).")
+    return Path(root) / od.get("folder", "HCS Safety Report")
+
+
+def _send_onedrive(cfg, subject, html_body, attachment):
+    """Hand the email to the Power Automate flow (docs/power-automate-flow.md).
+
+    Writes the attachment to <folder>/Attachments, then a message file to <folder>/Outbox. The flow
+    triggers on the new message file, waits for the attachment to sync, and sends the email.
+    """
+    import json
+    import shutil
+
+    e = cfg["email"]
+    base = onedrive_folder(cfg)
+    att_dir, outbox = base / "Attachments", base / "Outbox"
+    att_dir.mkdir(parents=True, exist_ok=True)
+    outbox.mkdir(parents=True, exist_ok=True)
+    stamp = dt.datetime.now().strftime("%Y-%m-%d_%H%M%S_%f")  # unique per message
+    if attachment is None:  # e.g. a failure notice: the flow always attaches a file, so attach a short note
+        att_name = f"run-notes ({stamp}).txt"
+        (att_dir / att_name).write_text(html.unescape(re.sub(r"<[^>]+>", "", html_body)), encoding="utf-8")
+    else:
+        att_name = f"{attachment.stem} ({stamp}){attachment.suffix}"
+        shutil.copyfile(attachment, att_dir / att_name)
+    message = {"to": "; ".join(e["to"]), "cc": "; ".join(e.get("cc") or []), "subject": subject,
+               "html": html_body, "attachment": att_name}
+    tmp = outbox.parent / f".message {stamp}.tmp"  # write elsewhere, then move in, so the flow never sees half a file
+    tmp.write_text(json.dumps(message), encoding="utf-8")
+    final = outbox / f"message {stamp}.json"
+    shutil.move(str(tmp), final)
+    return f"handed to Power Automate via {final} (sends to {message['to']} once OneDrive syncs)"
 
 
 def _send_graph(cfg, subject, html_body, attachment):

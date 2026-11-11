@@ -216,15 +216,20 @@ class Extractor:
             log.info("Project %s %s (Procore id %s, %s)", pn, pname, pid, region)
 
             mob = row.get("Mobilization Date")
-            start = mob.date() if isinstance(mob, dt.datetime) else (mob if isinstance(mob, dt.date) else
-                                                                    self.today - dt.timedelta(days=self.cfg["daily_log"]["default_lookback_days"]))
+            # Table1 only counts daily logs from the Mobilization Date on; without one the score is TBD,
+            # so skip the (one-call-per-day) daily log check entirely.
+            start = mob.date() if isinstance(mob, dt.datetime) else (mob if isinstance(mob, dt.date) else None)
             tools = [
                 ("inspections", lambda: self.inspections(pid, pn, pname, region)),
                 ("observations", lambda: self.observations(pid, pn, pname)),
                 ("incidents", lambda: self.incidents(pid, pn, pname)),
                 ("incident_forms", lambda: self.incident_forms(pid, pn, pname)),
-                ("daily_log", lambda: self.daily_logs(pid, pn, pname, start)),
             ]
+            if start:
+                tools.append(("daily_log", lambda: self.daily_logs(pid, pn, pname, start)))
+            else:
+                log.info("  daily_log skipped: no Mobilization Date in Table1")
+                self.counts.append((pn, pname, "daily_log", "skipped (no Mobilization Date)"))
             for tool, fn in tools:
                 try:
                     n = fn()

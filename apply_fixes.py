@@ -95,6 +95,7 @@ def _letters(n: int) -> str:
 
 
 def fix_scorecard(sheet_xml: str, first=5, last=37, clear_to=45) -> str:
+    """Rows first..last get formulas (last = 4 + number of Table1 rows); rows after that are cleared."""
     def set_cell(xml, ref, formula):
         pat = re.compile(r'<c r="%s"([^>/]*)(?:/>|>.*?</c>)' % ref, re.S)
         def repl(m):
@@ -150,6 +151,9 @@ def main(argv=None):
     args = ap.parse_args(argv)
     cfg = load_config()
     template = ROOT / cfg["template"]
+    if "(fixed)" in template.name:
+        sys.exit(f"{template.name} already has the fixes (and later data corrections). "
+                 "Run apply_fixes.py only against an original, unfixed template (point config.yaml's template: at it).")
     which = set(args.only or ["scorecard", "countifs"])  # open-penalty changes scores: opt in explicitly
     out = Path(args.out) if args.out else template.with_name(template.stem + " (fixed).xlsx")
     apply(template, out, which)

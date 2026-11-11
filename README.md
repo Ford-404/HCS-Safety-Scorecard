@@ -13,17 +13,22 @@ python run_weekly.py
 
 ## Setup on the always-on Windows PC
 
-1. Install **Python 3.11+** from python.org (tick "Add python.exe to PATH"). Excel and Outlook desktop
+1. Install **Python 3.11+** from python.org (tick "Add python.exe to PATH"). Excel desktop and the OneDrive sync app
    should be installed and signed in. LibreOffice is only needed if Excel isn't installed.
-2. Copy this folder to the PC, e.g. `C:\HCS\hcs-safety-report`, and put `002 - Safety Health Report.xlsx` in `templates\`.
+2. Get the code onto the PC, either way:
+   - **From GitHub** (private repo): `git clone https://github.com/Ford-Tough/HCS-Safety-Scorecard.git C:\HCS\hcs-safety-report`,
+     then copy into it, from the OneDrive backup zip: `templates\002 - Safety Health Report (fixed).xlsx`
+     (plus the original next to it) and `data\daily_log_cache.json`. These are kept out of git because they hold project/incident data.
+   - **From the backup zip**: right-click → Extract All → `C:\HCS`. It already contains the templates and the cache.
 3. In PowerShell from that folder:
    ```
    powershell -ExecutionPolicy Bypass -File scheduling\setup_windows.ps1
    ```
 4. Open `.env` and fill in the keys (below).
 5. Test without sending: `.\.venv\Scripts\python.exe run_weekly.py --no-email`. Email is already set up
-   (Outlook, to ford.nwosu@hillwood.com), so a run without `--no-email` sends it.
-   - The **first run takes about 8 hours.** Procore only returns Daily Log completion one date per call
+   (Power Automate via OneDrive, to ford.nwosu@hillwood.com; set up the flow first, see docs/power-automate-flow.md),
+   so a run without `--no-email` sends it.
+   - **With `data\daily_log_cache.json` copied over, the first run takes about 10–60 minutes. Without it, about 8 hours:** Procore only returns Daily Log completion one date per call
      (about 7,600 dates across all projects), and this app is allowed about 1,000 calls an hour. The script
      pauses until each hourly limit resets. The results are cached in `data\daily_log_cache.json`, so
      weekly runs after that use about 700–900 calls and take about 10–20 minutes. **Copy `data\daily_log_cache.json`
@@ -35,7 +40,7 @@ python run_weekly.py
    powershell -ExecutionPolicy Bypass -File scheduling\install_task.ps1 -Day Friday -Time 05:30
    ```
    The PC's time zone should be Central so 06:00 means 6:00 AM Central. The task runs as the signed-in
-   user (needed for Outlook), so lock the PC rather than signing out. It wakes the PC, and runs late
+   user (needed for Excel and OneDrive), so lock the PC rather than signing out. It wakes the PC, and runs late
    if the PC was off at 6:00.
 
 ## `.env` keys (never commit this file)
@@ -58,7 +63,7 @@ hidden from it. It only ever sends GET requests. The one POST is the OAuth token
 ```yaml
 email:
   enabled: true
-  method: outlook
+  method: onedrive
   to: ["safety-team@hillwood.com", "someone@hillwood.com"]
 ```
 Start with just yourself, then add people.
@@ -112,12 +117,18 @@ The extract log lists any project where Procore and Table1 disagree.
   rows from the template, so their scores don't drop to zero. This is noted in the email.
 - Daily Log contains **completed days only** (like the manual export), because "Complete Total2" counts every row.
 
-## Email options
+## Email
+
+**Current setup: `email.method: onedrive` + a Power Automate flow** (the new Outlook can't be scripted).
+The script saves the workbook and a message file into `OneDrive - Hillwood\HCS Safety Report\`; the flow
+**HCS Safety Report email** sends it from your mailbox a few minutes later. One-time flow setup:
+**`docs/power-automate-flow.md`**. Test without pulling Procore data: `.\.venv\Scripts\python.exe send_test_email.py`.
 
 | Method | Pros | Cons |
 |---|---|---|
-| `outlook` (default) | Nothing to set up; sends from your mailbox; appears in Sent Items | PC user must stay signed in with Outlook working |
-| `graph` | Fully unattended; can send from a shared mailbox | Needs IT to create an Entra app with Mail.Send |
+| `onedrive` (current) | Works with the new Outlook; no IT request; sends from your mailbox | Needs OneDrive syncing on the PC and the flow switched on; arrives a few minutes after the run |
+| `outlook` | Nothing to set up | Classic Outlook only (not the new Outlook) |
+| `graph` | Fully unattended | Needs IT to register an Entra app with Mail.Send |
 | `smtp` | Simple | SMTP AUTH is usually disabled in Microsoft 365 |
 
 Set `email.enabled: false` to build everything without sending. The message is saved as
