@@ -1,6 +1,6 @@
 """Send the most recent scorecard email again, without calling Procore.
 
-Uses the latest output/<date>/table1_values.json and output/Safety Health Report <date>.xlsx,
+Uses the latest output/Safety Health Report <date>.xlsx (and output/<date>/table1_values.json if present),
 and sends through the method in config.yaml (Outlook by default) to email.to.
 
     python send_test_email.py              # latest run
@@ -29,19 +29,26 @@ def main(argv=None) -> int:
     load_dotenv(ROOT / ".env")
     cfg = load_config()
     out = ROOT / cfg["output_dir"]
-    runs = sorted(p.parent.name for p in out.glob("*/table1_values.json"))
+    # Runs are found by their workbook (output/Safety Health Report YYYY-MM-DD.xlsx)
+    runs = sorted(p.stem.replace("Safety Health Report ", "") for p in out.glob("Safety Health Report *.xlsx"))
     if not runs:
-        print("No previous run found in output/ (need output/<date>/table1_values.json).")
+        print(f"No workbook found. Put 'Safety Health Report YYYY-MM-DD.xlsx' in {out}")
         return 1
     run = args.date or runs[-1]
-    values = json.loads((out / run / "table1_values.json").read_text(encoding="utf-8"))
     workbook = out / f"Safety Health Report {run}.xlsx"
+    values_file = out / run / "table1_values.json"
+    if values_file.exists():
+        values = json.loads(values_file.read_text(encoding="utf-8"))
+    else:  # read the scores stored in the workbook itself
+        from build_workbook import sheet_values
+        values = sheet_values(workbook)
+    print(f"Sending the scorecard from {workbook.name}")
     run_date = dt.date.fromisoformat(run[:10])
     body = build_html(table1_rows(values), run_date, cfg["report"].get("score_threshold"),
                       ["Test send: this is the scorecard from an earlier run, re-sent without pulling new Procore data."])
     subject = "[TEST] " + cfg["report"]["subject"].format(date=run_date.strftime("%m/%d/%Y"))
     cfg["email"]["enabled"] = True  # this script exists to send
-    print(send(cfg, subject, body, workbook if workbook.exists() else None, out / run))
+    print(send(cfg, subject, body, workbook, out / run))
     return 0
 
 
