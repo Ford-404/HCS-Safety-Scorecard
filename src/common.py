@@ -12,6 +12,15 @@ from zoneinfo import ZoneInfo
 
 import yaml
 
+# Corporate networks often inspect HTTPS with a company root certificate that Windows trusts but
+# Python's bundled certificate list does not. truststore makes Python verify against the operating
+# system's certificate store instead (verification stays on).
+try:
+    import truststore
+    truststore.inject_into_ssl()
+except ImportError:  # pragma: no cover
+    pass
+
 ROOT = Path(__file__).resolve().parent.parent
 
 

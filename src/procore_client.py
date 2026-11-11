@@ -13,6 +13,12 @@ import time
 import requests
 from dotenv import load_dotenv
 
+try:  # use the OS certificate store (see src/common.py)
+    import truststore
+    truststore.inject_into_ssl()
+except ImportError:  # pragma: no cover
+    pass
+
 log = logging.getLogger(__name__)
 
 HOSTS = {
@@ -95,6 +101,9 @@ class ProcoreClient:
             self._throttle()
             try:
                 resp = self.session.get(url, headers=self._auth_headers(), params=params, timeout=60)
+            except requests.exceptions.SSLError as exc:
+                raise ProcoreError(0, url, f"SSL certificate check failed ({exc}). On a company network, run: "
+                                   "python -m pip install truststore  (lets Python use the Windows certificate store)") from exc
             except requests.RequestException as exc:  # network blip: back off and retry
                 attempt += 1
                 log.warning("Network error on %s (%s), retrying in %.0fs", url, exc, delay)
