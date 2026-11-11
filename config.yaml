@@ -13,7 +13,6 @@ procore:
 daily_log:
   cache_file: "data/daily_log_cache.json"
   refresh_days: 21              # re-check not-yet-completed days this far back (logs are often completed late)
-  default_lookback_days: 365    # used when a project has no Mobilization Date in Table1
 
 # Procore project region -> report region (Table1 "Region" column)
 region_map:

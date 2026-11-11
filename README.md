@@ -15,7 +15,11 @@ python run_weekly.py
 
 1. Install **Python 3.11+** from python.org (tick "Add python.exe to PATH"). Excel and Outlook desktop
    should be installed and signed in. LibreOffice is only needed if Excel isn't installed.
-2. Copy this folder to the PC, e.g. `C:\HCS\hcs-safety-report`, and put `002 - Safety Health Report.xlsx` in `templates\`.
+2. Get the code onto the PC, either way:
+   - **From GitHub** (private repo): `git clone https://github.com/Ford-Tough/HCS-Safety-Scorecard.git C:\HCS\hcs-safety-report`,
+     then copy into it, from the OneDrive backup zip: `templates\002 - Safety Health Report (fixed).xlsx`
+     (plus the original next to it) and `data\daily_log_cache.json`. These are kept out of git because they hold project/incident data.
+   - **From the backup zip**: right-click → Extract All → `C:\HCS`. It already contains the templates and the cache.
 3. In PowerShell from that folder:
    ```
    powershell -ExecutionPolicy Bypass -File scheduling\setup_windows.ps1
@@ -23,7 +27,7 @@ python run_weekly.py
 4. Open `.env` and fill in the keys (below).
 5. Test without sending: `.\.venv\Scripts\python.exe run_weekly.py --no-email`. Email is already set up
    (Outlook, to ford.nwosu@hillwood.com), so a run without `--no-email` sends it.
-   - The **first run takes about 8 hours.** Procore only returns Daily Log completion one date per call
+   - **With `data\daily_log_cache.json` copied over, the first run takes about 10–60 minutes. Without it, about 8 hours:** Procore only returns Daily Log completion one date per call
      (about 7,600 dates across all projects), and this app is allowed about 1,000 calls an hour. The script
      pauses until each hourly limit resets. The results are cached in `data\daily_log_cache.json`, so
      weekly runs after that use about 700–900 calls and take about 10–20 minutes. **Copy `data\daily_log_cache.json`
