@@ -38,7 +38,7 @@ report:
 email:
   enabled: true                # false = write the email to output/<date>/ only, send nothing
   method: onedrive             # Power Automate flow sends it (new Outlook can't be scripted). Other options: outlook | graph | smtp
-  to: ["ford.nwosu@hillwood.com"]   # test list: just you. Add the distribution list once you are happy with it
+  to: ["ford.nwosu@hillwood.com", "john.shaw@hillwood.com", "Oscar.Martinez@Hillwood.com", "Mike.Lokhaiser@hillwood.com"]   # distribution list (added 2026-11-12)
   cc: []
   from: ""                     # smtp/graph only: sending mailbox
   onedrive:
