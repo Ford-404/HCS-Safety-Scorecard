@@ -66,7 +66,9 @@ def main(argv=None) -> int:
         try:
             if cfg["email"].get("enabled") and not args.no_email:
                 from emailer import send
-                body = (f"<p>The HCS Safety Health Report run for {run_date} failed:</p><pre>{exc}</pre>"
+                # Failure notices go only to email.failure_to (falls back to email.to if not set)
+                cfg["email"] = {**cfg["email"], "to": cfg["email"].get("failure_to") or cfg["email"]["to"], "cc": []}
+                body =(f"<p>The HCS Safety Health Report run for {run_date} failed:</p><pre>{exc}</pre>"
                         f"<pre style='color:#666'>{traceback.format_exc()[-3000:]}</pre><p>Logs are in {ROOT / 'logs'} on the report PC.</p>")
                 send(cfg, f"FAILED: HCS Safety Health Report {run_date}", body, None, ROOT / cfg["output_dir"] / run_date.isoformat())
         except Exception:  # noqa: BLE001

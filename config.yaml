@@ -40,6 +40,7 @@ email:
   method: onedrive             # Power Automate flow sends it (new Outlook can't be scripted). Other options: outlook | graph | smtp
   to: ["ford.nwosu@hillwood.com", "john.shaw@hillwood.com", "Oscar.Martinez@Hillwood.com", "Mike.Lokhaiser@hillwood.com"]   # distribution list (added 2026-11-12)
   cc: []
+  failure_to: ["ford.nwosu@hillwood.com"]   # failure notices go only here (blank = same as to)
   from: ""                     # smtp/graph only: sending mailbox
   onedrive:
     folder: "HCS Safety Report"  # folder inside your work OneDrive that the Power Automate flow watches

@@ -133,7 +133,7 @@ The script saves the workbook and a message file into `OneDrive - Hillwood\HCS S
 
 Set `email.enabled: false` to build everything without sending. The message is saved as
 `output/<date>/email.eml` and `email.html`. If a run fails and email is enabled, a failure notice
-goes to the same list.
+goes only to `email.failure_to` (currently just Ford; falls back to `email.to` if blank).
 
 ## Troubleshooting
 
