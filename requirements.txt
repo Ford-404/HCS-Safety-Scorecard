@@ -2,4 +2,5 @@ requests>=2.31
 python-dotenv>=1.0
 openpyxl>=3.1
 PyYAML>=6.0
+tzdata>=2024.1    # time zone database (Windows Python has none; needed for America/Chicago)
 truststore>=0.9   # use the Windows/macOS certificate store (company HTTPS inspection)
